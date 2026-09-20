@@ -1,0 +1,7 @@
+security/credentials.json
+security/credentials.json.bak
+security/audit_log.jsonl
+.env
+__pycache__/
+*.pyc
+.venv/
