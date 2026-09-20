@@ -4,6 +4,35 @@ This folder implements Angelika's standalone component. It contains no computer
 vision, LLM integration, serial implementation, or Arduino/hardware code.
 Only Python's standard library is required (Python 3.10 or newer).
 
+## Open the caregiver login window
+
+Double-click **Open FROGI.bat** in the repository folder, or run:
+
+```powershell
+cd "C:\Users\angel\Documents\Codex\2026-09-20\x20-re\work\aihealthassistant"
+py -3 -m security.login_ui
+```
+
+Enter your actual caregiver ID (for example, `Angelika`) and the PIN you created,
+then select **Hop in**. The window verifies `security/credentials.json` using the
+existing security backend. **Log out** clears the session. Closing the window
+also logs out; after 15 minutes it automatically returns to the login form.
+The PIN field is hidden and cleared after each submitted attempt.
+
+This is a caregiver-facing login window with a friendly frog illustration.
+It displays real authentication status; it does not display monitoring data or
+operate hardware. Its session belongs to this application process and does not
+sign a separate AI application into the account. Integration remains pending.
+Create credentials once with `py -3 -m security.make_credentials` if needed.
+The window requires Python's standard Tkinter/Tcl/Tk component (included with
+normal python.org Windows installations). No pip packages are required.
+
+To run the four additional window integration checks on a computer with Tk:
+
+```powershell
+py -3 -m security.login_ui_tests
+```
+
 ## What each file does
 
 Paths below are relative to the repository root.
@@ -11,6 +40,9 @@ Paths below are relative to the repository root.
 | File | Responsibility and use |
 | --- | --- |
 | `security/security.py` | Implements real credential verification, login/logout, session expiry, failed-login cooldown, data-access checks, command authorization, and audit logging. Provides wrappers that authorize before calling a data loader or command sender. |
+| `security/login_ui.py` | Frog-themed desktop login/logout window connected to actual saved credentials and an in-memory security session. |
+| `security/login_ui_tests.py` | Four GUI integration tests for real credential verification, logout, rejected PINs, empty input, and session expiry using temporary accounts. |
+| `Open FROGI.bat` | Windows double-click launcher that opens the login window from the correct repository directory. |
 | `security/make_credentials.py` | Prompts for a caregiver ID and PIN, generates a random salt, hashes the PIN, and creates the local credential file. It never saves the original PIN and refuses to overwrite existing credentials. |
 | `security/security_tests.py` | Runs 18 automated security tests using isolated temporary credentials and mock operations. Checks authentication, permissions, logout, expiry, cooldown, audit behavior, STOP, and credential protection. |
 | `security/demo.py` | Demonstrates security decisions using temporary credentials, a fake monitoring event, and a simulated command sender. It does not connect to a camera, LLM, or robot. |
@@ -23,7 +55,8 @@ Paths below are relative to the repository root.
 The login backend is real. Fake data is used only in the isolated tests and demo.
 The current setup script says "test" because this is a student prototype; the
 credentials it creates are actually verified by `login()`. There is currently no
-graphical login screen, account-management interface, or multi-account database.
+account-management interface or multi-account database. A graphical login/logout
+window is available through `security.login_ui`.
 
 ## How the PIN is hashed and salted
 
