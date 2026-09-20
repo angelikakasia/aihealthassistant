@@ -1,6 +1,8 @@
 security/credentials.json
 security/credentials.json.bak
 security/audit_log.jsonl
+security/accounts/
+security/family.sqlite3*
 .env
 __pycache__/
 *.pyc

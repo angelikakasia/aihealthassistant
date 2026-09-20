@@ -1,5 +1,60 @@
 # Angelika: security and privacy
 
+## New: sign-up, baby profiles, and illness diary
+
+Open the same app with `py -3 -m security.login_ui` or **Open FROGI.bat**.
+Close any older running FROGI window before reopening it to see updates.
+
+1. Select **Sign up · Create account**, choose a unique caregiver login and a
+   6–12 digit PIN, then confirm the PIN. Your existing `Angelika` login still works.
+2. Sign in and select **My babies & illness diary**.
+3. Select **+ Add baby**, enter a name and date of birth in `YYYY-MM-DD` format.
+4. Select that baby and open **Illness diary**. Select **+ Add illness entry**.
+5. Enter the illness/concern in your own words, start date, optional end date,
+   symptoms, and notes. Leave the end date blank for an ongoing entry.
+6. Select an entry to read its details or edit it. Baby profiles can also be edited.
+
+These are manual caregiver records, not AI diagnoses or automatic illness
+detection. This feature extends the original monitoring-only project scope at
+the user's request. It does not implement computer vision or robot hardware.
+
+| New file | Responsibility |
+| --- | --- |
+| `security/family_store.py` | Creates additional salted/hashed caregiver accounts; preserves the original login; validates and stores caregiver-owned baby profiles and illness entries in SQLite. Checks authentication and audits access on every read/write. |
+| `security/family_ui.py` | Sign-up, baby list, profile editor, illness history and entry editor windows. |
+| `security/family_tests.py` | Seven tests covering persistence, edits, account isolation, logout/expiry, invalid dates, existing accounts, audit failures and log privacy. |
+| `security/accounts/` (local only) | One generated credential JSON per new caregiver; PINs are salted and hashed exactly like the original credentials. |
+| `security/family.sqlite3` (local only) | Baby names, birth dates and manual illness notes, scoped to their caregiver account. SQLite sidecar files are also excluded from Git. |
+
+The original `credentials.json` is preserved. `FamilySecurity`, used by the UI,
+supports both that original account and new sign-ups. The original module-level
+`security.login` interface still uses the single-account backend; an integrating
+application must explicitly use `FamilySecurity` and share its instance with
+`FamilyStore` to support these additional accounts. Sessions remain local to
+one running process, with a 15-minute expiry.
+
+The app checks ownership on every database operation; another caregiver cannot
+view or edit your records through the application. Logout and expiry destroy all
+open profile/diary windows and their displayed content. Audit logs contain actions
+and decisions, not baby names, dates of birth, symptoms, notes, or PINs.
+
+**Storage limitation:** the SQLite database is not encrypted. The login protects
+access through FROGI, not direct access by someone who can read your Windows files.
+Use a protected OS account and disk encryption before storing sensitive records.
+This local prototype does not provide medical diagnosis, cloud backup, account
+recovery, shared-family access, or a record-deletion interface.
+
+Run the storage/security checks:
+
+```powershell
+py -3 -m unittest security.family_tests security.security_tests
+git check-ignore security/accounts/example.json security/family.sqlite3 security/family.sqlite3-wal
+```
+
+The 25 non-GUI checks passed in the development environment. Tk window rendering
+and GUI tests remain unverified there because that environment's Tcl/Tk runtime
+could not initialize; run `py -3 -m security.login_ui_tests` on your Windows Python.
+
 This folder implements Angelika's standalone component. It contains no computer
 vision, LLM integration, serial implementation, or Arduino/hardware code.
 Only Python's standard library is required (Python 3.10 or newer).
@@ -20,7 +75,7 @@ also logs out; after 15 minutes it automatically returns to the login form.
 The PIN field is hidden and cleared after each submitted attempt.
 
 This is a caregiver-facing login window with a friendly frog illustration.
-It displays real authentication status; it does not display monitoring data or
+It displays authentication status and opens the manual family diary; it does not
 operate hardware. Its session belongs to this application process and does not
 sign a separate AI application into the account. Integration remains pending.
 Create credentials once with `py -3 -m security.make_credentials` if needed.
@@ -54,9 +109,9 @@ Paths below are relative to the repository root.
 
 The login backend is real. Fake data is used only in the isolated tests and demo.
 The current setup script says "test" because this is a student prototype; the
-credentials it creates are actually verified by `login()`. There is currently no
-account-management interface or multi-account database. A graphical login/logout
-window is available through `security.login_ui`.
+credentials it creates are actually verified by `login()`. A graphical login/logout
+and sign-up interface is available through `security.login_ui`, with additional
+accounts supported by `FamilySecurity` as described above.
 
 ## How the PIN is hashed and salted
 

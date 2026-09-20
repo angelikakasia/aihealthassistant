@@ -1,7 +1,8 @@
 """FROGI caregiver login window. Run: py -3 -m security.login_ui"""
 import tkinter as tk
 from tkinter import ttk
-from .security import Security
+from .family_store import FamilySecurity
+from .family_ui import Forms
 
 CREAM = '#FAF8F1'
 INK = '#23463D'
@@ -14,12 +15,13 @@ class LoginWindow:
     """One real local security session, owned by this window."""
     def __init__(self, root, security=None):
         self.root = root
-        self.security = security if security is not None else Security()
+        self.security = security if security is not None else FamilySecurity()
+        self.forms = Forms(self)
         self.signed_in = False
         self.timer = None
         self.root.title('FROGI | Caregiver login')
-        self.root.geometry('510x710')
-        self.root.minsize(470, 690)
+        self.root.geometry('510x790')
+        self.root.minsize(470, 760)
         self.root.configure(bg=CREAM)
         self.root.protocol('WM_DELETE_WINDOW', self.close)
         style = ttk.Style(root)
@@ -53,6 +55,7 @@ class LoginWindow:
         self.login_button = ttk.Button(self.form, text='Hop in', style='Frogi.TButton',
                                        command=self.login)
         self.login_button.pack(fill='x', pady=(18, 0))
+        ttk.Button(self.form, text='Sign up · Create account', command=self.forms.signup).pack(fill='x', pady=(8, 0))
         self.name.bind('<Return>', lambda event: self.pin.focus_set())
         self.pin.bind('<Return>', lambda event: self.login())
 
@@ -63,6 +66,8 @@ class LoginWindow:
         self.logout_button = ttk.Button(self.welcome, text='Log out', style='Frogi.TButton',
                                         command=self.logout)
         self.logout_button.pack(fill='x')
+        ttk.Button(self.welcome, text='My babies & illness diary', style='Frogi.TButton',
+                   command=self.forms.dashboard).pack(fill='x', pady=(10, 0))
 
         self.message = self.label(outer, '', 11)
         self.message.configure(wraplength=390)
@@ -71,7 +76,7 @@ class LoginWindow:
         self.footer.configure(wraplength=400)
         self.footer.pack(side='bottom', pady=(10, 0))
         if not self.security.credentials_path.is_file():
-            self.message.configure(text='Create your caregiver account first:\npy -3 -m security.make_credentials',
+            self.message.configure(text='New here? Choose Sign up to create your account.',
                                    fg='#91404B')
         self.name.focus_set()
         self.timer = self.root.after(1000, self.check_session)
@@ -114,6 +119,7 @@ class LoginWindow:
             pin = None
             self.login_button.configure(state='normal')
         if allowed:
+            self.forms.clear()
             self.signed_in = True
             self.name.delete(0, 'end')
             self.heading.configure(text='Welcome back!')
@@ -128,6 +134,7 @@ class LoginWindow:
             self.pin.focus_set()
 
     def show_logged_out(self, message):
+        self.forms.clear()
         self.signed_in = False
         self.name.delete(0, 'end')
         self.pin.delete(0, 'end')
@@ -149,6 +156,7 @@ class LoginWindow:
         self.timer = self.root.after(1000, self.check_session)
 
     def close(self):
+        self.forms.clear()
         if self.timer is not None:
             self.root.after_cancel(self.timer)
         if self.signed_in:
