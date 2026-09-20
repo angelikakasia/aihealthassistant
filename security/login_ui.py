@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 from .family_store import FamilySecurity
 from .family_ui import Forms
+from .widgets import RoundedButton
 
 CREAM = '#FAF8F1'
 INK = '#23463D'
@@ -52,10 +53,10 @@ class LoginWindow:
         self.pin = ttk.Entry(self.form, show='\u2022', style='Frogi.TEntry')
         self.pin.pack(fill='x', pady=(5, 6))
         self.label(self.form, 'Your PIN stays hidden while you type.', 10).pack(anchor='w')
-        self.login_button = ttk.Button(self.form, text='Hop in', style='Frogi.TButton',
+        self.login_button = RoundedButton(self.form, text='Hop in',
                                        command=self.login)
         self.login_button.pack(fill='x', pady=(18, 0))
-        ttk.Button(self.form, text='Sign up · Create account', command=self.forms.signup).pack(fill='x', pady=(8, 0))
+        RoundedButton(self.form, text='Sign up · Create account', command=self.forms.signup).pack(fill='x', pady=(8, 0))
         self.name.bind('<Return>', lambda event: self.pin.focus_set())
         self.pin.bind('<Return>', lambda event: self.login())
 
@@ -63,10 +64,10 @@ class LoginWindow:
         self.label(self.welcome, 'You are signed in', 17, bold=True, bg=MINT).pack()
         self.label(self.welcome, 'Your caregiver session is open.\nIt closes automatically after 15 minutes.',
                    11, bg=MINT).pack(pady=(10, 16))
-        self.logout_button = ttk.Button(self.welcome, text='Log out', style='Frogi.TButton',
+        self.logout_button = RoundedButton(self.welcome, text='Log out',
                                         command=self.logout)
         self.logout_button.pack(fill='x')
-        ttk.Button(self.welcome, text='My babies & illness diary', style='Frogi.TButton',
+        RoundedButton(self.welcome, text='My babies & care notebook',
                    command=self.forms.dashboard).pack(fill='x', pady=(10, 0))
 
         self.message = self.label(outer, '', 11)
@@ -153,6 +154,8 @@ class LoginWindow:
     def check_session(self):
         if self.signed_in and not self.security.is_authenticated():
             self.show_logged_out('Your session has ended. Please sign in again.')
+        if self.signed_in:
+            self.forms.check_reminders()
         self.timer = self.root.after(1000, self.check_session)
 
     def close(self):

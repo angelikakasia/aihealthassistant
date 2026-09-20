@@ -1,5 +1,67 @@
 # Angelika: security and privacy
 
+## Care notebook: medications, allergies, appointments and reminders
+
+Close FROGI and reopen it to load updates. Sign in, select **My babies & care
+notebook**, choose a baby, then **Open care notebook**. The notebook contains:
+
+- **Illness diary:** the existing caregiver-entered illness history.
+- **Medications:** medication name, prescribed dose/instructions, schedule notes,
+  prescriber, notes, and Active/Stopped status. These are manual records; FROGI
+  does not calculate doses, recommend medicines, check interactions, or send
+  medication reminders.
+- **Allergies:** allergen/substance, observed reaction, clinician instructions,
+  notes, and Reported/Confirmed/Resolved status chosen by the caregiver.
+- **Appointments:** reason, date and time, provider, location, notes, and
+  Scheduled/Completed/Cancelled status. The schedule is a chronological list.
+  Enter dates as `YYYY-MM-DD HH:MM`, using 24-hour time on this computer.
+
+Each tab supports adding, viewing and editing records. Buttons now have rounded
+corners with hover, pressed, disabled and keyboard-focus states. The new record
+forms scroll so their controls remain reachable on smaller screens.
+
+### Appointment reminders
+
+Choose no reminder, at appointment time, 15 minutes before, one hour before, or
+one day before. FROGI checks approximately every 30 seconds while signed in.
+The reminder window offers **Got it** (persistently dismiss) and **Remind me again
+in 5 minutes**. Closing that window also snoozes for five minutes during the
+current run. It is not marked dismissed until you explicitly acknowledge it.
+
+Reminders work only while this app is running and an authenticated session is
+active. There is no background Windows service, phone notification, email, or
+notification while logged out. The existing 15-minute session expiry still
+applies. Pending reminders, including past appointment times, appear after the
+next sign-in; past ones are labeled as missed reminders. A reminder does not
+mark an appointment completed. Edit its status yourself.
+
+Dismissal survives restart. Rescheduling or changing reminder timing/status
+rearms the reminder. Cancelled/completed appointments and disabled reminders do
+not trigger. Times are local wall-clock values; changing the computer's time zone
+does not convert saved appointments automatically. Snooze state is in memory;
+an undismissed reminder may appear sooner if you restart or sign in again.
+
+All new records use the existing local `security/family.sqlite3` database and
+retain caregiver ownership checks. Database upgrades add a table without removing
+existing baby profiles or illness entries. These files stay excluded from Git.
+The database remains unencrypted; authentication protects application access.
+
+| New file | Responsibility |
+| --- | --- |
+| `security/widgets.py` | Rounded ttk buttons using generated Tk images; no image files or extra packages needed. |
+| `security/health_store.py` | Validates and persists medication/allergy/appointment records, verifies ownership, selects due reminders and persists dismissal. |
+| `security/health_ui.py` | Care notebook tabs, scrollable record editors, appointment reminders and snooze controls. |
+| `security/health_tests.py` | Ten tests for record persistence, access isolation, date validation, schedule order, reminder timing, cancellation, dismissal, rescheduling and privacy. |
+
+Run all non-GUI tests:
+
+```powershell
+py -3 -m unittest security.security_tests security.family_tests security.health_tests
+```
+
+Window rendering still requires checking with your installed Windows Python;
+the development environment's Tcl/Tk runtime does not initialize.
+
 ## New: sign-up, baby profiles, and illness diary
 
 Open the same app with `py -3 -m security.login_ui` or **Open FROGI.bat**.

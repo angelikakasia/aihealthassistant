@@ -3,6 +3,9 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import date
 from .family_store import FamilyStore
+from .widgets import RoundedButton
+from .health_ui import HealthUI
+import time
 
 BG = '#FAF8F1'
 INK = '#23463D'
@@ -13,12 +16,24 @@ class Forms:
         self.app = app
         self.windows = []
         self.store = FamilyStore(app.security)
+        self.health = HealthUI(self)
+        self.next_reminder_check = 0
+        self.reminder_window = None
 
     def clear(self):
         for window in self.windows:
             if window.winfo_exists():
                 window.destroy()
         self.windows.clear()
+        self.reminder_window = None
+        self.next_reminder_check = 0
+
+    def check_reminders(self):
+        if time.monotonic() >= self.next_reminder_check:
+            self.next_reminder_check = time.monotonic() + 30
+            self.health.reminders()
+            if self.reminder_window is not None and self.reminder_window.winfo_exists():
+                self.next_reminder_check = time.monotonic() + 300
 
     def window(self, title, size='540x620'):
         win = tk.Toplevel(self.app.root)
@@ -51,7 +66,7 @@ class Forms:
         return label
 
     def button(self, parent, text, command):
-        ttk.Button(parent, text=text, command=command, style='Frogi.TButton').pack(fill='x', padx=24, pady=6)
+        RoundedButton(parent, text=text, command=command).pack(fill='x', padx=24, pady=6)
 
     def signup(self):
         win = self.window('Join our little pond', '540x640')
@@ -92,7 +107,7 @@ class Forms:
             self.app.show_logged_out('Please sign in again.')
             return
         win = self.window('My little ones', '620x680')
-        self.label(win, 'Add a baby, then open their illness diary. Entries are written by you; FROGI does not diagnose illnesses.')
+        self.label(win, 'Choose a baby to open illnesses, medications, allergies and appointments.')
         self.label(win, 'Stored on this computer. Local files are not encrypted; use a protected Windows account.')
         tree = ttk.Treeview(win, columns=('name', 'dob'), show='headings', height=9)
         tree.heading('name', text='Baby name')
@@ -124,8 +139,8 @@ class Forms:
 
         self.button(win, '+ Add baby', lambda: self.baby_form(refresh))
         self.button(win, 'Edit selected baby', lambda: selected(lambda row: self.baby_form(refresh, row)))
-        self.button(win, 'Open illness diary', lambda: selected(self.diary))
-        tree.bind('<Double-1>', lambda event: selected(self.diary))
+        self.button(win, 'Open care notebook', lambda: selected(self.health.open))
+        tree.bind('<Double-1>', lambda event: selected(self.health.open))
         refresh()
 
     @staticmethod
