@@ -4,6 +4,171 @@ This folder implements Angelika's standalone component. It contains no computer
 vision, LLM integration, serial implementation, or Arduino/hardware code.
 Only Python's standard library is required (Python 3.10 or newer).
 
+## What each file does
+
+Paths below are relative to the repository root.
+
+| File | Responsibility and use |
+| --- | --- |
+| `security/security.py` | Implements real credential verification, login/logout, session expiry, failed-login cooldown, data-access checks, command authorization, and audit logging. Provides wrappers that authorize before calling a data loader or command sender. |
+| `security/make_credentials.py` | Prompts for a caregiver ID and PIN, generates a random salt, hashes the PIN, and creates the local credential file. It never saves the original PIN and refuses to overwrite existing credentials. |
+| `security/security_tests.py` | Runs 18 automated security tests using isolated temporary credentials and mock operations. Checks authentication, permissions, logout, expiry, cooldown, audit behavior, STOP, and credential protection. |
+| `security/demo.py` | Demonstrates security decisions using temporary credentials, a fake monitoring event, and a simulated command sender. It does not connect to a camera, LLM, or robot. |
+| `security/__init__.py` | Exposes the security interface so the application can use imports such as `from security import login`. |
+| `security/README.md` | Explains this component, setup, useful commands, security design, and integration responsibilities. |
+| `.gitignore` | Excludes generated credentials, audit logs, `.env`, Python cache files, and the local virtual environment from ordinary Git additions. |
+| `security/credentials.json` — local only | Stores one caregiver's authentication ID, algorithm, iteration count, salt, and PIN hash. This is the current file-based credential store, not a database server. |
+| `security/audit_log.jsonl` — local only | Records real security decisions, one JSON event per line. Created when security actions are recorded. Contains no PINs or monitoring-event content. |
+
+The login backend is real. Fake data is used only in the isolated tests and demo.
+The current setup script says "test" because this is a student prototype; the
+credentials it creates are actually verified by `login()`. There is currently no
+graphical login screen, account-management interface, or multi-account database.
+
+## How the PIN is hashed and salted
+
+1. `make_credentials.py` collects the PIN with `getpass`, so characters are not
+   displayed in the terminal. It checks that the PIN contains 6–12 digits and
+   that the confirmation matches.
+2. `create_credentials()` in `security.py` generates a fresh 32-byte random salt
+   using `secrets.token_bytes(32)`.
+3. It computes the hash with
+   `hashlib.pbkdf2_hmac('sha256', pin.encode(), salt, 600_000)`.
+   PBKDF2 repeats computational work to make each guessing attempt more expensive.
+4. It stores the salt and 32-byte hash as hexadecimal strings, together with
+   `auth_id`, `version`, `algorithm`, and `iterations`, in `credentials.json`.
+   It does not store the plaintext PIN.
+5. At login, it loads the saved salt and iteration count and hashes the entered
+   PIN using those same parameters. It compares the result with the stored hash
+   using `hmac.compare_digest`. A new salt is not generated during verification.
+
+The salt is not a password and does not need to be secret. Different random salts
+make the same PIN produce different hashes. Hashing is one-way, not reversible
+encryption: opening the credential file will show the ID, salt, and hash, but
+cannot show the original PIN. Keep the complete credential file private because
+someone with its hash can attempt offline guesses.
+
+## Useful Windows PowerShell commands
+
+Always start in the repository folder. Running these Python commands from
+`C:\Windows\system32` produces `No module named 'security'`.
+For Angelika's current local checkout:
+
+```powershell
+cd "C:\Users\angel\Documents\Codex\2026-09-20\x20-re\work\aihealthassistant"
+```
+
+On another computer, replace that path with your own repository folder.
+
+### Create credentials once
+
+```powershell
+py -3 -m security.make_credentials
+```
+
+Choose a caregiver ID and PIN privately. IDs are case-sensitive: `Angelika` and
+`angelika` are different. If credentials already exist, use them to log in; the
+setup command deliberately refuses to replace them. No PIN recovery or reset
+interface is implemented yet.
+
+### Check a real login
+
+```powershell
+py -3 -c "from security import login; from getpass import getpass; print('LOGIN SUCCESSFUL' if login(input('Login: '), getpass('PIN: ')) else 'LOGIN FAILED')"
+```
+
+This verifies the entered ID and PIN against your actual local credential file
+and records the result. The PIN is hidden while you type. This command exits
+after the check, so its session ends immediately; it does not sign you into
+GitHub or authenticate a separate running application.
+
+### Keep a session open and check permissions
+
+Start Python interactively:
+
+```powershell
+py -3
+```
+
+Then enter these lines at the Python `>>>` prompt, one at a time. The login
+line prompts for your actual credentials; do not put your PIN into code.
+
+```python
+from security import login, logout, is_authenticated, can_read, can_command
+from getpass import getpass
+login(input('Login: '), getpass('PIN: '))
+is_authenticated()
+can_read('monitoring_events')
+can_read('safety_alerts')
+can_read('event_history', for_ai=True)
+can_command('FWD')
+can_command('SPIN_FAST')
+logout()
+is_authenticated()
+can_read('monitoring_events')
+can_command('FWD')
+can_command('STOP')
+exit()
+```
+
+After a successful login, approved reads and `FWD` return `True` until logout or
+expiry. `SPIN_FAST` returns `False`. After logout, authentication, protected reads,
+and `FWD` return `False`; `STOP` remains allowed. These command checks authorize
+only: they do not move or stop physical hardware. Session state and the login
+cooldown belong to this Python process and do not persist after it exits.
+
+### Inspect your local credential store
+
+```powershell
+notepad .\security\credentials.json
+```
+
+Use this to see the saved login ID, salt, hash, and iteration count. The PIN is
+not present. Inspect without changing the values, and do not publish the file.
+
+### Inspect login and authorization history
+
+```powershell
+notepad .\security\audit_log.jsonl
+Get-Content .\security\audit_log.jsonl -Tail 10
+```
+
+The log exists after a security action has been recorded. Events contain
+`timestamp`, `actor`, `action`, `resource`, and `result`. A successful login uses
+the authenticated caregiver ID; failed logins use `anonymous`.
+
+### Run automated checks and the isolated demo
+
+```powershell
+py -3 -m security.security_tests
+py -3 -m security.demo
+```
+
+Expected test result: `18 PASS | 0 FAIL`. These commands use temporary files and
+do not replace your own credentials or log you into a separate application.
+
+### Check GitHub upload protection
+
+```powershell
+git branch --show-current
+git status --short
+git check-ignore security/credentials.json security/audit_log.jsonl
+git ls-files -- security/credentials.json security/audit_log.jsonl
+```
+
+Your development branch should be `angelika-security`. `git check-ignore` should
+print both local file paths; `git ls-files` should print nothing for them. Code,
+tests, and documentation belong in GitHub; generated credentials and runtime logs
+stay local. If Git reports dubious ownership for the Codex-created checkout,
+use a one-command exception scoped to this exact folder, for example:
+
+```powershell
+git -c safe.directory=C:/Users/angel/Documents/Codex/2026-09-20/x20-re/work/aihealthassistant -C "C:\Users\angel\Documents\Codex\2026-09-20\x20-re\work\aihealthassistant" status --short
+```
+
+Use that same prefix with `push origin angelika-security` instead of
+`status --short` when uploading an already-created commit from this checkout.
+
 ## Run from the repository root
 
 ```powershell
